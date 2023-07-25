@@ -11,11 +11,6 @@ from sklearn.manifold import TSNE
 from sklearn.datasets import load_digits
 from sklearn.preprocessing import scale
 
-# We'll hack a bit with the t-SNE code in sklearn 0.15.2.
-from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.manifold.t_sne import (_joint_probabilities,
-                                    _kl_divergence)
-
 def visualize_TSNE(feat, label, num_class, args, split):
 
     sns.set_style('darkgrid')

@@ -50,11 +50,13 @@ class Logger():
     def get_writer(self):
         if self._writer is None:
             # subfolder exp + time
-            sub_folder_name = datetime.datetime.now().strftime('-%Y%m%d-%H%M%S')
+            # sub_folder_name = datetime.datetime.now().strftime('-%Y%m%d-%H%M%S')
+            sub_folder_name = ''
             if self.args.experiment:
                 sub_folder_name = self.args.experiment + sub_folder_name
-            log_dir = os.path.join(self.args.logs_dir, sub_folder_name)
-            _writer = SummaryWriter(log_dir)
+            # log_dir = os.path.join(self.args.logs_dir, sub_folder_name)
+            # _writer = SummaryWriter(log_dir)
+            _writer = SummaryWriter(self.args.logs_dir)
 
         return _writer
 

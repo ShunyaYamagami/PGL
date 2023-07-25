@@ -2,3 +2,6 @@ data/
 checkpoints/
 logs/
 .idea/
+.vscode/
+__pycache__/
+PGL/
