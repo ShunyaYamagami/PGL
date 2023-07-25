@@ -14,6 +14,10 @@ from utils.loss import FocalLoss
 
 from models.component import Discriminator
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class ModelTrainer():
     def __init__(self, args, data, step=0, label_flag=None, v=None, logger=None):
         self.args = args
@@ -72,7 +76,7 @@ class ModelTrainer():
             g['lr'] = lr * g.get('lr_mult', 1)
 
         if epoch % step_size == 0:
-            print("Epoch {}, current lr {}".format(epoch, lr))
+            logger.info("Epoch {}, current lr {}".format(epoch, lr))
 
     def label2edge(self, targets):
 
@@ -237,11 +241,11 @@ class ModelTrainer():
                     if i > 150:
                         break
             if (epoch + 1) % args.log_epoch == 0:
-                print('---- Start Epoch {} Training --------'.format(epoch))
+                logger.info('\n---- Start Epoch {} Training --------'.format(epoch))
                 for k in range(args.num_class - 1):
-                    print('Target {} Precision: {:.3f}'.format(args.class_name[k], self.meter.avg[k]))
+                    logger.info('Target {} Precision: {:.3f}'.format(args.class_name[k], self.meter.avg[k]))
 
-                print('Step: {} | {}; Epoch: {}\t'
+                logger.info('Step: {} | {}; Epoch: {}\t'
                       'Training Loss {:.3f}\t'
                       'Training Prec {:.3%}\t'
                       'Target Prec {:.3%}\t'
@@ -261,14 +265,14 @@ class ModelTrainer():
     def estimate_label(self):
 
         args = self.args
-        print('label estimation...')
+        logger.info('label estimation...')
         if args.dataset == 'visda':
             test_data = Visda_Dataset(root=args.data_dir, partition='test', label_flag=self.label_flag, target_ratio=self.step * args.EF / 100)
         elif args.dataset == 'office':
-            test_data = Office_Dataset(root=args.data_dir, partition='test', label_flag=self.label_flag,
+            test_data = Office_Dataset(root=args.data_dir, txt_root=args.txt_root, partition='test', label_flag=self.label_flag,
                                        source=args.source_name, target=args.target_name, target_ratio=self.step * args.EF / 100)
         elif args.dataset == 'home':
-            test_data = Home_Dataset(root=args.data_dir, partition='test', label_flag=self.label_flag, source=args.source_name,
+            test_data = Home_Dataset(root=args.data_dir, txt_root=args.txt_root, partition='test', label_flag=self.label_flag, source=args.source_name,
                               target=args.target_name, target_ratio=self.step * args.EF / 100)
         elif args.dataset == 'visda18':
             test_data = Visda18_Dataset(root=args.data_dir, partition='test', label_flag=self.label_flag,
@@ -318,7 +322,7 @@ class ModelTrainer():
                 real_labels.append(target_labels.cpu().detach())
 
                 if i % self.args.log_step == 0:
-                    print('Step: {} | {}; \t'
+                    logger.info('Step: {} | {}; \t'
                           'OS Prec {:.3%}\t'
                           .format(i, len(target_loader),
                                   self.meter.avg.mean()))
@@ -381,7 +385,7 @@ class ModelTrainer():
         self.meter.update(real_label, (pred_y == real_label).astype(int))
 
         for k in range(self.args.num_class):
-            print('Target {} Precision: {:.3f}'.format(self.args.class_name[k], self.meter.avg[k]))
+            logger.info('Target {} Precision: {:.3f}'.format(self.args.class_name[k], self.meter.avg[k]))
 
         for k in range(self.num_class):
             self.logger.log_scalar('test/' + self.args.class_name[k], self.meter.avg[k], self.step)
@@ -389,7 +393,7 @@ class ModelTrainer():
         self.logger.log_scalar('test/OS_star', self.meter.avg[:-1].mean(), self.step)
         self.logger.log_scalar('test/OS', self.meter.avg.mean(), self.step)
 
-        print('Node predictions: OS accuracy = {:0.4f}, OS* accuracy = {:0.4f}'.format(self.meter.avg.mean(), self.meter.avg[:-1].mean()))
+        logger.info('Node predictions: OS accuracy = {:0.4f}, OS* accuracy = {:0.4f}'.format(self.meter.avg.mean(), self.meter.avg[:-1].mean()))
 
         correct = pos_correct + neg_correct
         total = pos_total + neg_total
@@ -404,28 +408,28 @@ class ModelTrainer():
                                      target_ratio=(self.step + 1) * self.args.EF / 100)
 
         elif self.args.dataset == 'office':
-            new_data = Office_Dataset(root=self.args.data_dir, partition='train', label_flag=new_label_flag,
+            new_data = Office_Dataset(root=self.args.data_dir, txt_root=self.args.txt_root, partition='train', label_flag=new_label_flag,
                                        source=self.args.source_name, target=self.args.target_name,
                                       target_ratio=(self.step + 1) * self.args.EF / 100)
 
         elif self.args.dataset == 'home':
-            new_data = Home_Dataset(root=self.args.data_dir, partition='train', label_flag=new_label_flag,
+            new_data = Home_Dataset(root=self.args.data_dir, txt_root=self.args.txt_root, partition='train', label_flag=new_label_flag,
                                     source=self.args.source_name, target=self.args.target_name,
                                     target_ratio=(self.step + 1) * self.args.EF / 100)
         elif self.args.dataset == 'visda18':
             new_data = Visda18_Dataset(root=self.args.data_dir, partition='train', label_flag=new_label_flag,
                                      target_ratio=(self.step + 1) * self.args.EF / 100)
 
-        print('selected pseudo-labeled data: {} of {} is correct, accuracy: {:0.4f}'.format(correct, total, acc))
-        print('positive data: {} of {} is correct, accuracy: {:0.4f}'.format(pos_correct, pos_total, pos_acc))
-        print('negative data: {} of {} is correct, accuracy: {:0.4f}'.format(neg_correct, neg_total, neg_acc))
+        logger.info('selected pseudo-labeled data: {} of {} is correct, accuracy: {:0.4f}'.format(correct, total, acc))
+        logger.info('positive data: {} of {} is correct, accuracy: {:0.4f}'.format(pos_correct, pos_total, pos_acc))
+        logger.info('negative data: {} of {} is correct, accuracy: {:0.4f}'.format(neg_correct, neg_total, neg_acc))
         return new_label_flag, new_data
 
     def one_hot_encode(self, num_classes, class_idx):
         return torch.eye(num_classes, dtype=torch.long)[class_idx]
 
     def load_model_weight(self, path):
-        print('loading weight')
+        logger.info('loading weight')
         state = torch.load(path)
         self.model.load_state_dict(state['model'])
         self.gnnModel.load_state_dict(state['graph'])
@@ -450,7 +454,7 @@ class ModelTrainer():
         return (edge*source_edge_mask.float())
 
     def extract_feature(self):
-        print('Feature extracting...')
+        logger.info('Feature extracting...')
         self.meter.reset()
         # append labels and scores for target samples
         vgg_features_target = []
