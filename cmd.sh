@@ -4,15 +4,23 @@ function process_args {
     dset_num=$3
         shift 3  # 無名引数数
 
+    # Office31
     task=(
-        "original"
-        # "true_domains"
+        "true_domains"
+        # "simclr_rpl_dim512_wght0.8_bs512_ep300_g3_encoder_outdim64_shfl"
     )
+    # OfficeHome
+    # task=(
+    #     "original"
+    #     "true_domains"
+    #     "simclr_rpl_dim128_wght0.5_bs512_ep3000_g3_encoder_outdim64_shfl"
+    # )
 
-    parent="home"  # choices([office, home])
+    # parent="home"  # choices([office, home])
+    parent="office"  # choices([office, home])
     
     COMMAND="conda deactivate && conda deactivate"
-    COMMAND+=" && conda activate da"
+    COMMAND+=" && conda activate pgl"
 
     if [ $parent = 'office' ]; then
         dsetlist=("Amazon_Dslr" "Dslr_Webcam" "Webcam_Amazon")
@@ -29,7 +37,7 @@ function process_args {
     for tsk in "${task[@]}"; do
         if [ $dset_num -eq -1 ]; then
             for dset in "${dsetlist[@]}"; do
-                COMMAND+=" && CUDA_VISIBLE_DEVICES=$gpu_i  python train.py \
+                COMMAND+=" && CUDA_VISIBLE_DEVICES="$gpu_i"  python train.py \
                             --dset $dset \
                             --task $tsk \
                             --dataset $parent \
@@ -38,7 +46,7 @@ function process_args {
             done
         else
             dset=${dsetlist[$dset_num]}
-            COMMAND+=" && CUDA_VISIBLE_DEVICES=$gpu_i  python train.py \
+            COMMAND+=" && CUDA_VISIBLE_DEVICES="$gpu_i"  python train.py \
                             --dset $dset \
                             --task $tsk \
                             --dataset $parent \

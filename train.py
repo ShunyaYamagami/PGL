@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from utils.visualization import visualize_TSNE
+from utils.myfuncs import set_determinism, set_logger
+from datetime import datetime
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
@@ -19,7 +21,6 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
 # data
 from data_loader import Visda_Dataset, Office_Dataset, Home_Dataset, Visda18_Dataset
@@ -28,7 +29,8 @@ from utils.logger import Logger
 
 def main(args):
 
-    total_step = 100//args.EF
+    # total_step = int(100//args.EF)
+    total_step = int(100//args.EF)
 
     # set random seed
     np.random.seed(args.seed)
@@ -37,6 +39,10 @@ def main(args):
     random.seed(args.seed)
 
     # prepare checkpoints and log folders
+    set_determinism()
+    args.experiment = set_exp_name(args)
+    args.logs_dir = os.path.join('logs', args.dataset, args.experiment)
+    args.checkpoints_dir = os.path.join(args.logs_dir, 'checkpoints')
     if not os.path.exists(args.checkpoints_dir):
         os.makedirs(args.checkpoints_dir)
     if not os.path.exists(args.logs_dir):
@@ -48,13 +54,13 @@ def main(args):
         data = Visda_Dataset(root=args.data_dir, partition='train', label_flag=None)
 
     elif args.dataset == 'office':
-        args.data_dir = os.path.join(args.data_dir, 'Office')
-        data = Office_Dataset(root=args.data_dir, partition='train', label_flag=None, source=args.source_name,
+        args.data_dir = os.path.join(args.data_dir, 'Office31', 'imgs')
+        data = Office_Dataset(root=args.data_dir, txt_root=args.txt_root, partition='train', label_flag=None, source=args.source_name,
                               target=args.target_name)
 
     elif args.dataset == 'home':
-        args.data_dir = os.path.join(args.data_dir, 'OfficeHome')
-        data = Home_Dataset(root=args.data_dir, partition='train', label_flag=None, source=args.source_name,
+        args.data_dir = os.path.join(args.data_dir, 'OfficeHome', 'imgs')
+        data = Home_Dataset(root=args.data_dir, txt_root=args.txt_root, partition='train', label_flag=None, source=args.source_name,
                               target=args.target_name)
     elif args.dataset == 'visda18':
         args.data_dir = os.path.join(args.data_dir, 'visda18')
@@ -68,7 +74,9 @@ def main(args):
     # setting experiment name
     label_flag = None
     selected_idx = None
-    args.experiment = set_exp_name(args)
+
+    os.makedirs(args.logs_dir, exist_ok=True)
+    set_logger(args.logs_dir)
     logger = Logger(args)
 
     if not args.visualization:
@@ -103,46 +111,53 @@ def main(args):
 
 
 def set_exp_name(args):
-    exp_name = 'D-{}'.format(args.dataset)
-    if args.dataset == 'office' or args.dataset == 'home':
-        exp_name += '_src-{}_tar-{}'.format(args.source_name, args.target_name)
-    exp_name += '_A-{}'.format(args.arch)
-    exp_name += '_L-{}'.format(args.num_layers)
-    exp_name += '_E-{}_B-{}'.format(args.EF, args.batch_size)
+    gpu = os.environ['CUDA_VISIBLE_DEVICES']
+    exec_num = os.environ['exec_num'] if 'exec_num' in os.environ.keys() else 0
+    now  = datetime.now().strftime('%y%m%d_%H:%M:%S')
+    exp_name  = now
+    exp_name += f'--c{gpu[0]}n{exec_num}'
+    exp_name += f'--{args.dset}'
+    # exp_name += f'--{args.source_name}{args.target_name}'
+    exp_name += f'--{args.task}'
+    exp_name += '--A{}'.format(args.arch)
+    exp_name += '_L{}'.format(args.num_layers)
+    exp_name += '_E{}_B{}'.format(args.EF, args.batch_size)
     return exp_name
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Progressive Graph Learning for Open-set Domain Adaptation')
     # set up dataset & backbone embedding
-    dataset = 'visda18'
-    parser.add_argument('--dataset', type=str, default=dataset)
+    # parser.add_argument('--dataset', type=str, default=dataset)
     parser.add_argument('-a', '--arch', type=str, default='res')
     parser.add_argument('--root_path', type=str, default='./utils/', metavar='B',
                         help='root dir')
 
     # set up path
-    working_dir = os.path.dirname(os.path.abspath(__file__))
     parser.add_argument('--data_dir', type=str, metavar='PATH',
-                        default=os.path.join(working_dir, 'data/'))
-    parser.add_argument('--logs_dir', type=str, metavar='PATH',
-                        default=os.path.join(working_dir, 'logs'))
-    parser.add_argument('--checkpoints_dir', type=str, metavar='PATH',
-                        default=os.path.join(working_dir, 'checkpoints'))
+                        default='/nas/data/syamagami/GDA/data')
+    # parser.add_argument('--logs_dir', type=str, metavar='PATH',
+    #                     default=os.path.join(working_dir, 'logs'))
+    # parser.add_argument('--checkpoints_dir', type=str, metavar='PATH',
+    #                     default=os.path.join(working_dir, 'checkpoints'))
 
     # verbose setting
     parser.add_argument('--log_step', type=int, default=30)
     parser.add_argument('--log_epoch', type=int, default=3)
 
-    if dataset == 'office':
-        parser.add_argument('--source_name', type=str, default='D')
-        parser.add_argument('--target_name', type=str, default='W')
+    parser.add_argument('--dset', type=str, default='amazon_dslr')
+    parser.add_argument('--task', type=str, default='true_domains')
+    parser.add_argument('--dataset', type=str, default='home', choices=['home', 'office', 'visda', 'visda18'])
 
-    elif dataset == 'home':
-        parser.add_argument('--source_name', type=str, default='R')
-        parser.add_argument('--target_name', type=str, default='A')
-    else:
-        print("Set a log step first !")
+    # if dataset == 'office':
+    #     parser.add_argument('--source_name', type=str, default='D')
+    #     parser.add_argument('--target_name', type=str, default='W')
+
+    # elif dataset == 'home':
+    #     parser.add_argument('--source_name', type=str, default='R')
+    #     parser.add_argument('--target_name', type=str, default='A')
+    # else:
+    #     print("Set a log step first !")
     parser.add_argument('--eval_log_step', type=int, default=100)
     parser.add_argument('--test_interval', type=int, default=1500)
 
@@ -150,11 +165,13 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
 
-    parser.add_argument('-b', '--batch_size', type=int, default=4)
-    parser.add_argument('--threshold', type=float, default=0.1)
+    parser.add_argument('-b', '--batch_size', type=int, default=1)  # 元々は4
+    # parser.add_argument('--threshold', type=float, default=0.1)
+    parser.add_argument('--threshold', type=float, default=0.6)  ### TODO: これは beta であろうか. 論文のTable 1の設定であろうか. もともとは0.1
 
     parser.add_argument('--dropout', type=float, default=0.2)
-    parser.add_argument('--EF', type=int, default=10)
+    # parser.add_argument('--EF', type=int, default=10)
+    parser.add_argument('--EF', type=int, default=0.1)  ### TODO: Enlarging Factor α. もともとは10. 論文のTable 1の設定. 
     parser.add_argument('--loss', type=str, default='focal')
 
 
@@ -164,12 +181,12 @@ if __name__ == '__main__':
 
     # GNN parameters
     parser.add_argument('--in_features', type=int, default=2048)
-    if dataset == 'home':
-        parser.add_argument('--node_features', type=int, default=512)
-        parser.add_argument('--edge_features', type=int, default=512)
-    else:
-        parser.add_argument('--node_features', type=int, default=1024)
-        parser.add_argument('--edge_features', type=int, default=1024)
+    # if dataset == 'home':
+    #     parser.add_argument('--node_features', type=int, default=512)
+    #     parser.add_argument('--edge_features', type=int, default=512)
+    # else:
+    #     parser.add_argument('--node_features', type=int, default=1024)
+    #     parser.add_argument('--edge_features', type=int, default=1024)
 
     parser.add_argument('--num_layers', type=int, default=1)
 
@@ -183,5 +200,20 @@ if __name__ == '__main__':
 
     #GNN hyper-parameters
     parser.add_argument('--node_loss', type=float, default=0.3)
-    main(parser.parse_args())
+
+    args = parser.parse_args()
+    
+    args.txt_root = f'data/{args.dataset}/{args.task}'
+    args.source_name = args.dset.split('_')[0][0]
+    args.target_name = args.dset.split('_')[1][0]
+
+    if args.dataset == 'home':
+        args.node_features = 512
+        args.edge_features = 512
+    else:
+        args.node_features = 1024
+        args.edge_features = 1024
+
+    
+    main(args)
 

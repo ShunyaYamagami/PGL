@@ -398,8 +398,8 @@ class ModelTrainer():
         correct = pos_correct + neg_correct
         total = pos_total + neg_total
         acc = correct / total
-        pos_acc = pos_correct / pos_total
-        neg_acc = neg_correct / neg_total
+        # pos_acc = pos_correct / pos_total
+        # neg_acc = neg_correct / neg_total
         new_label_flag = torch.tensor(new_label_flag)
 
         # update source data
@@ -421,8 +421,8 @@ class ModelTrainer():
                                      target_ratio=(self.step + 1) * self.args.EF / 100)
 
         logger.info('selected pseudo-labeled data: {} of {} is correct, accuracy: {:0.4f}'.format(correct, total, acc))
-        logger.info('positive data: {} of {} is correct, accuracy: {:0.4f}'.format(pos_correct, pos_total, pos_acc))
-        logger.info('negative data: {} of {} is correct, accuracy: {:0.4f}'.format(neg_correct, neg_total, neg_acc))
+        # logger.info('positive data: {} of {} is correct, accuracy: {:0.4f}'.format(pos_correct, pos_total, pos_acc))
+        # logger.info('negative data: {} of {} is correct, accuracy: {:0.4f}'.format(neg_correct, neg_total, neg_acc))
         return new_label_flag, new_data
 
     def one_hot_encode(self, num_classes, class_idx):
